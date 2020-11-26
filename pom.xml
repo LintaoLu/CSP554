@@ -205,6 +205,9 @@ LICENSE file.
     <module>tablestore</module>
     <!--<module>voldemort</module>-->
     <module>voltdb</module>
+      <module>DocumentDB</module>
+    <module>documentDB</module>
+    <module>documentdb</module>
   </modules>
 
   <build>
