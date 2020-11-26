@@ -193,8 +193,8 @@ public class MongoDbClient extends DB {
         String username = "llu25";
         String password = "123456789";
         String clusterEndpoint = "llu25.cluster-cbo8ghduq2g8.us-east-1.docdb.amazonaws.com:27017";
-        String readPreference = "secondaryPreferred";
-        url = String.format(template, username, password, clusterEndpoint, readPreference);
+        String rp = "secondaryPreferred";
+        url = String.format(template, username, password, clusterEndpoint, rp);
       }
 
       url = OptionsSupport.updateUrl(url, props);
