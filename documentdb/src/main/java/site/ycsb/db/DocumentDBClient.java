@@ -20,8 +20,8 @@ public class DocumentDBClient {
         MongoClientURI clientURI = new MongoClientURI(connectionString);
         MongoClient mongoClient = new MongoClient(clientURI);
 
-        MongoDatabase testDB = mongoClient.getDatabase("sample-database");
-        MongoCollection<Document> numbersCollection = testDB.getCollection("sample-collection");
+        MongoDatabase testDB = mongoClient.getDatabase("userDB");
+        MongoCollection<Document> numbersCollection = testDB.getCollection("userCollection");
 
         Document doc = new Document("name", "pi").append("value", 3.14159);
         numbersCollection.insertOne(doc);
