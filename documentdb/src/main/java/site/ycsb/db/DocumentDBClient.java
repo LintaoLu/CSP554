@@ -11,9 +11,9 @@ public class DocumentDBClient {
 
     public DocumentDBClient() {
         String template = "mongodb://%s:%s@%s/sample-database?replicaSet=rs0&readpreference=%s";
-        String username = "<sample-user>";
-        String password = "<password>";
-        String clusterEndpoint = "sample-cluster.node.us-east-1.docdb.amazonaws.com:27017";
+        String username = "llu25";
+        String password = "huhu87588315";
+        String clusterEndpoint = "llu25.cluster-cbo8ghduq2g8.us-east-1.docdb.amazonaws.com:27017";
         String readPreference = "secondaryPreferred";
         String connectionString = String.format(template, username, password, clusterEndpoint, readPreference);
 
