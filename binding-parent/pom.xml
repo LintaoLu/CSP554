@@ -35,8 +35,6 @@ LICENSE file.
 
   <modules>
     <module>datastore-specific-descriptor</module>
-      <module>../btestdb</module>
-    <module>../documentdb</module>
   </modules>
 
   <properties>

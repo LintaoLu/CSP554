@@ -168,8 +168,9 @@ LICENSE file.
     <module>cassandra</module>
     <module>cloudspanner</module>
     <module>couchbase</module>
-		<module>couchbase2</module>
-		<module>crail</module>
+    <module>couchbase2</module>
+    <module>crail</module>
+    <module>documentdb</module>
     <module>dynamodb</module>
     <module>elasticsearch</module>
     <module>elasticsearch5</module>
@@ -205,9 +206,6 @@ LICENSE file.
     <module>tablestore</module>
     <!--<module>voldemort</module>-->
     <module>voltdb</module>
-      <module>DocumentDB</module>
-    <module>documentDB</module>
-    <module>documentdb</module>
   </modules>
 
   <build>
