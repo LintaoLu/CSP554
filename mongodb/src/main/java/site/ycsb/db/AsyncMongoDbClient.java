@@ -202,6 +202,13 @@ public class AsyncMongoDbClient extends DB {
         System.exit(1);
       }
 
+      String template = "mongodb://%s:%s@%s/ycsb?w=1&replicaSet=rs0&readpreference=%s";
+      String username = "llu25";
+      String password = "123456789";
+      String clusterEndpoint = "llu25.cluster-cbo8ghduq2g8.us-east-1.docdb.amazonaws.com:27017";
+      String rp = "secondaryPreferred";
+      url = String.format(template, username, password, clusterEndpoint, rp);
+
       MongoDbUri uri = new MongoDbUri(url);
 
       try {
