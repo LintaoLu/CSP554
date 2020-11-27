@@ -168,8 +168,8 @@ LICENSE file.
     <module>cassandra</module>
     <module>cloudspanner</module>
     <module>couchbase</module>
-    <module>couchbase2</module>
-    <module>crail</module>
+		<module>couchbase2</module>
+		<module>crail</module>
     <module>dynamodb</module>
     <module>elasticsearch</module>
     <module>elasticsearch5</module>
