@@ -43,7 +43,6 @@ public class DynamoDBClient extends DB {
   private MongoClient mongoClient;
   private MongoDatabase testDB;
   private static final String PK = "_id";
-  private static final String databaseName = "userDB";
   private static final Integer INCLUDE = Integer.valueOf(1);
 
   public void init() {
@@ -58,14 +57,14 @@ public class DynamoDBClient extends DB {
     clientURI = new MongoClientURI(connectionString);
     mongoClient = new MongoClient(clientURI);
 
-    testDB = mongoClient.getDatabase(databaseName);
+    testDB = mongoClient.getDatabase("userdb");
   }
 
   @Override
   public Status read(String table, String key, Set<String> fields, Map<String, ByteIterator> result) {
     try {
       MongoCollection<Document> collection = testDB.getCollection(table);
-      Document query = new Document("_id", key);
+      Document query = new Document(PK, key);
 
       FindIterable<Document> findIterable = collection.find(query);
 
@@ -90,7 +89,8 @@ public class DynamoDBClient extends DB {
   }
 
   @Override
-  public Status scan(String table, String startkey, int recordcount, Set<String> fields, Vector<HashMap<String, ByteIterator>> result) {
+  public Status scan(String table, String startkey, int recordcount,
+                     Set<String> fields, Vector<HashMap<String, ByteIterator>> result) {
     MongoCursor<Document> cursor = null;
     try {
       MongoCollection<Document> collection = testDB.getCollection(table);
