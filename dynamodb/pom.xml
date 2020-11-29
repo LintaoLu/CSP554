@@ -52,5 +52,10 @@ LICENSE file.
           <version>3.11.0</version>
           <scope>compile</scope>
       </dependency>
+    <dependency>
+      <groupId>org.apache.tinkerpop</groupId>
+      <artifactId>gremlin-driver</artifactId>
+      <version>3.4.8</version>
+    </dependency>
   </dependencies>
 </project>
