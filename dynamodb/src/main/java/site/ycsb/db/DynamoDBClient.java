@@ -17,11 +17,15 @@
 package site.ycsb.db;
 
 import org.apache.tinkerpop.gremlin.driver.Cluster;
-import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.driver.
+        remote.DriverRemoteConnection;
+import org.apache.tinkerpop.gremlin.process.
+        traversal.dsl.graph.GraphTraversal;
+import org.apache.tinkerpop.gremlin.process.
+        traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.util.empty.EmptyGraph;
+import org.apache.tinkerpop.gremlin.structure.
+        util.empty.EmptyGraph;
 import site.ycsb.*;
 import java.util.*;
 
@@ -62,10 +66,10 @@ public class DynamoDBClient extends DB {
   public Status read(String table, String key,
                      Set<String> fields, Map<String,
           ByteIterator> result) {
-    GraphTraversal<Vertex, Map<Object, Object>> curr = g.V(key).valueMap();
+    GraphTraversal<Vertex, Map<String, Object>> curr = g.V(key).valueMap();
     curr.forEachRemaining(e -> {
-      for (Map.Entry<Object, Object> entry : e.entrySet()) {
-        result.put((String) entry.getKey(), (ByteIterator) entry.getValue());
+      for (Map.Entry<String, Object> entry : e.entrySet()) {
+        result.put(entry.getKey(), (ByteIterator) entry.getValue());
       }
     });
     return Status.OK;
@@ -73,9 +77,11 @@ public class DynamoDBClient extends DB {
 
   @Override
   public Status scan(String table, String startkey, int recordcount,
-                     Set<String> fields, Vector<HashMap<String, ByteIterator>> result) {
+                     Set<String> fields,
+                     Vector<HashMap<String, ByteIterator>> result) {
     // This gets the vertices, only.
-    GraphTraversal<Vertex, Map<Object, Object>> t = g.V().limit(recordcount).valueMap();
+    GraphTraversal<Vertex, Map<String, Object>> t =
+            g.V().limit(recordcount).valueMap();
     t.forEachRemaining( e -> {
       HashMap<String, ByteIterator> map = new HashMap<>();
       for (String str : fields) {
@@ -87,13 +93,15 @@ public class DynamoDBClient extends DB {
   }
 
   @Override
-  public Status update(String table, String key, Map<String, ByteIterator> values) {
+  public Status update(String table, String key,
+                       Map<String, ByteIterator> values) {
     insert(table, key, values);
     return Status.OK;
   }
 
   @Override
-  public Status insert(String table, String key, Map<String, ByteIterator> values) {
+  public Status insert(String table, String key,
+                       Map<String, ByteIterator> values) {
     // Add a vertex.
     // Note that a Gremlin terminal step, e.g. next(),
     // is required to make a request to the remote server.
