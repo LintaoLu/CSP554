@@ -65,11 +65,12 @@ public class DynamoDBClient extends DB {
   public Status read(String table, String key,
                      Set<String> fields, Map<String, ByteIterator> result) {
     GraphTraversal<Vertex, Map<String, Object>> curr = g.V(key).valueMap();
-    curr.forEachRemaining(e -> {
+    while (curr.hasNext()) {
+      Map<String, Object> e = curr.next();
       for (Map.Entry<String, Object> entry : e.entrySet()) {
         result.put(entry.getKey(), new StringByteIterator((String) entry.getValue()));
       }
-    });
+    }
     return Status.OK;
   }
 
@@ -80,13 +81,14 @@ public class DynamoDBClient extends DB {
     // This gets the vertices, only.
     GraphTraversal<Vertex, Map<String, Object>> t =
             g.V().limit(recordcount).valueMap();
-    t.forEachRemaining( e -> {
+    while (t.hasNext()) {
+      Map<String, Object> e = t.next();
       HashMap<String, ByteIterator> map = new HashMap<>();
       for (String str : fields) {
         map.put(str, (ByteIterator) e.get(str));
       }
       result.add(map);
-    });
+    }
     return Status.OK;
   }
 
