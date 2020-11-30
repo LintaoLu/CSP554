@@ -109,7 +109,7 @@ public class DynamoDBClient extends DB {
     // g.addV("Person").property("Name", "Justin").next();
     GraphTraversal<Vertex, Vertex> curr = g.addV(key);
     for (Map.Entry<String, ByteIterator> entry : values.entrySet()) {
-      curr.property(entry.getKey(), entry.getValue().toString());
+      curr.property(entry.getKey(), entry.getValue());
     }
     curr.toList();
     return Status.OK;
