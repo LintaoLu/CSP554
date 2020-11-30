@@ -55,11 +55,11 @@ public class DynamoDBClient extends DB {
             .withRemote(DriverRemoteConnection.using(cluster));
   }
 
-//  @Override
-//  public void cleanup() throws DBException {
-//    g.V().drop().iterate();
-//    cluster.close();
-//  }
+  @Override
+  public void cleanup() throws DBException {
+    g.V().drop().iterate();
+    cluster.close();
+  }
 
   @Override
   public Status read(String table, String key,
