@@ -23,6 +23,7 @@ import org.apache.tinkerpop.gremlin.process.
         traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.
         traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.structure.
         util.empty.EmptyGraph;
@@ -110,6 +111,7 @@ public class DynamoDBClient extends DB {
     for (Map.Entry<String, ByteIterator> entry : values.entrySet()) {
       curr.property(entry.getKey(), entry.getValue().toString());
     }
+    curr.toList();
     return Status.OK;
   }
 
