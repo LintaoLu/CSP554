@@ -112,7 +112,6 @@ public class DynamoDBClient extends DB {
     for (Map.Entry<String, ByteIterator> entry : values.entrySet()) {
       curr.property(entry.getKey(), entry.getValue().toString());
     }
-    curr.next();
     return Status.OK;
   }
 
