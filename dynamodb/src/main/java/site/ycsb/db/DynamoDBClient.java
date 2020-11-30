@@ -56,9 +56,7 @@ public class DynamoDBClient extends DB {
 
   @Override
   public void cleanup() throws DBException {
-    g.V().forEachRemaining(e -> {
-      g.V(e.label()).drop();
-    });
+    g.V().drop().iterate();
     cluster.close();
   }
 
