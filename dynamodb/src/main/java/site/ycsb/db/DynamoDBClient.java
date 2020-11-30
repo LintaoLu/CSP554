@@ -37,7 +37,9 @@ public class DynamoDBClient extends DB {
   @Override
   public void init() throws DBException {
     Cluster.Builder builder = Cluster.build();
-    builder.addContactPoint("llu25.cluster-cbo8ghduq2g8.us-east-1.neptune.amazonaws.com");
+    builder.addContactPoint("" +
+            "llu25.cluster-cbo8ghduq2g8." +
+            "us-east-1.neptune.amazonaws.com");
     builder.port(8182);
     builder.enableSsl(true);
     builder.keyCertChainFile("SFSRootCAG2.pem");
@@ -57,7 +59,9 @@ public class DynamoDBClient extends DB {
   }
 
   @Override
-  public Status read(String table, String key, Set<String> fields, Map<String, ByteIterator> result) {
+  public Status read(String table, String key,
+                     Set<String> fields, Map<String,
+          ByteIterator> result) {
     GraphTraversal<Vertex, Map<Object, Object>> curr = g.V(key).valueMap();
     curr.forEachRemaining(e -> {
       for (Map.Entry<Object, Object> entry : e.entrySet()) {
@@ -91,8 +95,10 @@ public class DynamoDBClient extends DB {
   @Override
   public Status insert(String table, String key, Map<String, ByteIterator> values) {
     // Add a vertex.
-    // Note that a Gremlin terminal step, e.g. next(), is required to make a request to the remote server.
-    // The full list of Gremlin terminal steps is at https://tinkerpop.apache.org/docs/current/reference/#terminal-steps
+    // Note that a Gremlin terminal step, e.g. next(),
+    // is required to make a request to the remote server.
+    // The full list of Gremlin terminal steps is at
+    // https://tinkerpop.apache.org/docs/current/reference/#terminal-steps
     // g.addV("Person").property("Name", "Justin").next();
     GraphTraversal<Vertex, Vertex> curr = g.addV(key);
     for (Map.Entry<String, ByteIterator> entry : values.entrySet()) {

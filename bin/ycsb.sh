@@ -192,7 +192,7 @@ else
     fi
 
     echo "[WARN] YCSB libraries not found.  Attempting to build..."
-    if mvn -Psource-run -pl site.ycsb:"$MVN_PROJECT" -am package -DskipTests; then
+    if mvn -Psource-run -pl site.ycsb:"$MVN_PROJECT" -am package -DskipTests -Dcheckstyle.skip; then
       echo "[ERROR] Error trying to build project. Exiting."
       exit 1;
     fi
