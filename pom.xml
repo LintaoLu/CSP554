@@ -205,7 +205,6 @@ LICENSE file.
     <module>tablestore</module>
     <!--<module>voldemort</module>-->
     <module>voltdb</module>
-      <module>test</module>
   </modules>
 
   <build>
