@@ -63,12 +63,11 @@ public class DynamoDBClient extends DB {
 
   @Override
   public Status read(String table, String key,
-                     Set<String> fields, Map<String,
-          ByteIterator> result) {
+                     Set<String> fields, Map<String, ByteIterator> result) {
     GraphTraversal<Vertex, Map<String, Object>> curr = g.V(key).valueMap();
     curr.forEachRemaining(e -> {
       for (Map.Entry<String, Object> entry : e.entrySet()) {
-        result.put(entry.getKey(), (ByteIterator) entry.getValue());
+        result.put(entry.getKey(), new StringByteIterator((String) entry.getValue()));
       }
     });
     return Status.OK;
@@ -109,9 +108,9 @@ public class DynamoDBClient extends DB {
     // g.addV("Person").property("Name", "Justin").next();
     GraphTraversal<Vertex, Vertex> curr = g.addV(key);
     for (Map.Entry<String, ByteIterator> entry : values.entrySet()) {
-      curr.property(entry.getKey(), entry.getValue());
+      curr.property(entry.getKey(), entry.getValue().toString());
     }
-    curr.toList();
+    curr.next();
     return Status.OK;
   }
 
