@@ -16,19 +16,23 @@
 
 package site.ycsb.db;
 
-import org.apache.tinkerpop.gremlin.driver.Cluster;
-import org.apache.tinkerpop.gremlin.driver.
-        remote.DriverRemoteConnection;
-import org.apache.tinkerpop.gremlin.process.
-        traversal.dsl.graph.GraphTraversal;
-import org.apache.tinkerpop.gremlin.process.
-        traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.structure.Graph;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.structure.
-        util.empty.EmptyGraph;
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.ClientConfiguration;
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.BasicSessionCredentials;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
+import com.amazonaws.services.dynamodbv2.model.*;
 import site.ycsb.*;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.*;
+import java.util.Map.Entry;
 
 /**
  * DynamoDB v1.10.48 client for YCSB.
@@ -36,39 +40,150 @@ import java.util.*;
 
 public class DynamoDBClient extends DB {
 
-  private GraphTraversalSource g;
-  private Cluster cluster;
+  /**
+   * Defines the primary key type used in this particular DB instance.
+   * <p>
+   * By default, the primary key type is "HASH". Optionally, the user can
+   * choose to use hash_and_range key type. See documentation in the
+   * DynamoDB.Properties file for more details.
+   */
+  private enum PrimaryKeyType {
+    HASH,
+    HASH_AND_RANGE
+  }
+
+  private AmazonDynamoDBClient dynamoDB;
+  private String primaryKeyName;
+  private PrimaryKeyType primaryKeyType = PrimaryKeyType.HASH;
+
+  // If the user choose to use HASH_AND_RANGE as primary key type, then
+  // the following two variables become relevant. See documentation in the
+  // DynamoDB.Properties file for more details.
+  private String hashKeyValue;
+  private String hashKeyName;
+
+  private boolean consistentRead = false;
+  private String endpoint = "http://dynamodb.us-east-1.amazonaws.com";
+  private int maxConnects = 50;
+  private static final Logger LOGGER = Logger.getLogger(DynamoDBClient.class);
+  private static final Status CLIENT_ERROR = new Status("CLIENT_ERROR", "An error occurred on the client.");
+  private static final String DEFAULT_HASH_KEY_VALUE = "YCSB_0";
 
   @Override
   public void init() throws DBException {
-    Cluster.Builder builder = Cluster.build();
-    builder.addContactPoint("" +
-            "llu25.cluster-cbo8ghduq2g8." +
-            "us-east-1.neptune.amazonaws.com");
-    builder.port(8182);
-    builder.enableSsl(true);
-    builder.keyCertChainFile("SFSRootCAG2.pem");
+    String debug = getProperties().getProperty("dynamodb.debug", null);
 
-    cluster = builder.create();
+    if (null != debug && "true".equalsIgnoreCase(debug)) {
+      LOGGER.setLevel(Level.DEBUG);
+    }
 
-    g = EmptyGraph.instance().traversal()
-            .withRemote(DriverRemoteConnection.using(cluster));
+    String configuredEndpoint = getProperties().getProperty("dynamodb.endpoint", null);
+    String credentialsFile = getProperties().getProperty("dynamodb.awsCredentialsFile", null);
+    String primaryKey = getProperties().getProperty("dynamodb.primaryKey", null);
+    String primaryKeyTypeString = getProperties().getProperty("dynamodb.primaryKeyType", null);
+    String consistentReads = getProperties().getProperty("dynamodb.consistentReads", null);
+    String connectMax = getProperties().getProperty("dynamodb.connectMax", null);
+
+    if (null != connectMax) {
+      this.maxConnects = Integer.parseInt(connectMax);
+    }
+
+    if (null != consistentReads && "true".equalsIgnoreCase(consistentReads)) {
+      this.consistentRead = true;
+    }
+
+    if (null != configuredEndpoint) {
+      this.endpoint = configuredEndpoint;
+    }
+
+    if (null == primaryKey || primaryKey.length() < 1) {
+      throw new DBException("Missing primary key attribute name, cannot continue");
+    }
+
+    if (null != primaryKeyTypeString) {
+      try {
+        this.primaryKeyType = PrimaryKeyType.valueOf(primaryKeyTypeString.trim().toUpperCase());
+      } catch (IllegalArgumentException e) {
+        throw new DBException("Invalid primary key mode specified: " + primaryKeyTypeString +
+                ". Expecting HASH or HASH_AND_RANGE.");
+      }
+    }
+
+    if (this.primaryKeyType == PrimaryKeyType.HASH_AND_RANGE) {
+      // When the primary key type is HASH_AND_RANGE, keys used by YCSB
+      // are range keys so we can benchmark performance of individual hash
+      // partitions. In this case, the user must specify the hash key's name
+      // and optionally can designate a value for the hash key.
+
+      String configuredHashKeyName = getProperties().getProperty("dynamodb.hashKeyName", null);
+      if (null == configuredHashKeyName || configuredHashKeyName.isEmpty()) {
+        throw new DBException("Must specify a non-empty hash key name when the primary key type is HASH_AND_RANGE.");
+      }
+      this.hashKeyName = configuredHashKeyName;
+      this.hashKeyValue = getProperties().getProperty("dynamodb.hashKeyValue", DEFAULT_HASH_KEY_VALUE);
+    }
+
+    try {
+      String[] keys = getKeys(new File(credentialsFile));
+      AWSCredentials credentials = new BasicSessionCredentials(keys[0], keys[1], keys[2]);
+      ClientConfiguration cconfig = new ClientConfiguration();
+      cconfig.setMaxConnections(maxConnects);
+      dynamoDB = new AmazonDynamoDBClient(credentials, cconfig);
+      dynamoDB.setEndpoint(this.endpoint);
+      primaryKeyName = primaryKey;
+      LOGGER.info("dynamodb connection created with " + this.endpoint);
+    } catch (Exception e1) {
+      LOGGER.error("DynamoDBClient.init(): Could not initialize DynamoDB client.", e1);
+    }
+  }
+
+  // AWS educate requires session token to login.
+  private String[] getKeys(File file) throws IOException {
+    String[] res = new String[3];
+    if (!file.exists()) {
+      throw new FileNotFoundException("File doesn't exist:  " + file.getAbsolutePath());
+    } else {
+      try (FileInputStream stream = new FileInputStream(file)) {
+        Properties accountProperties = new Properties();
+        accountProperties.load(stream);
+        if (accountProperties.getProperty("accessKey") == null ||
+                accountProperties.getProperty("secretKey") == null ||
+                accountProperties.getProperty("sessionToken") == null) {
+          throw new IllegalArgumentException("Incomplete credential keys!");
+        }
+        res[0] = accountProperties.getProperty("accessKey");
+        res[1] = accountProperties.getProperty("secretKey");
+        res[2] = accountProperties.getProperty("sessionToken");
+      }
+    }
+    return res;
   }
 
   @Override
-  public void cleanup() throws DBException {
-    g.V().drop().iterate();
-    cluster.close();
-  }
+  public Status read(String table, String key, Set<String> fields, Map<String, ByteIterator> result) {
+    if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug("readkey: " + key + " from table: " + table);
+    }
 
-  @Override
-  public Status read(String table, String key,
-                     Set<String> fields, Map<String, ByteIterator> result) {
-    GraphTraversal<Vertex, Map<Object, Object>> curr = g.V(key).valueMap();
-    while (curr.hasNext()) {
-      Map<Object, Object> e = curr.next();
-      for (Map.Entry<Object, Object> entry : e.entrySet()) {
-        result.put((String) entry.getKey(), new StringByteIterator((String) entry.getValue()));
+    GetItemRequest req = new GetItemRequest(table, createPrimaryKey(key));
+    req.setAttributesToGet(fields);
+    req.setConsistentRead(consistentRead);
+    GetItemResult res;
+
+    try {
+      res = dynamoDB.getItem(req);
+    } catch (AmazonServiceException ex) {
+      LOGGER.error(ex);
+      return Status.ERROR;
+    } catch (AmazonClientException ex) {
+      LOGGER.error(ex);
+      return CLIENT_ERROR;
+    }
+
+    if (null != res.getItem()) {
+      result.putAll(extractResult(res.getItem()));
+      if (LOGGER.isDebugEnabled()) {
+        LOGGER.debug("Result: " + res.toString());
       }
     }
     return Status.OK;
@@ -76,50 +191,173 @@ public class DynamoDBClient extends DB {
 
   @Override
   public Status scan(String table, String startkey, int recordcount,
-                     Set<String> fields,
-                     Vector<HashMap<String, ByteIterator>> result) {
-    // This gets the vertices, only.
-    GraphTraversal<Vertex, Map<Object, Object>> t =
-            g.V().limit(recordcount).valueMap();
-    while (t.hasNext()) {
-      Map<Object, Object> e = t.next();
-      HashMap<String, ByteIterator> map = new HashMap<>();
-      for (String str : fields) {
-        map.put(str, (ByteIterator) e.get(str));
+                     Set<String> fields, Vector<HashMap<String, ByteIterator>> result) {
+
+    if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug("scan " + recordcount + " records from key: " + startkey + " on table: " + table);
+    }
+
+    /*
+     * on DynamoDB's scan, startkey is *exclusive* so we need to
+     * getItem(startKey) and then use scan for the res
+     */
+    GetItemRequest greq = new GetItemRequest(table, createPrimaryKey(startkey));
+    greq.setAttributesToGet(fields);
+
+    GetItemResult gres;
+
+    try {
+      gres = dynamoDB.getItem(greq);
+    } catch (AmazonServiceException ex) {
+      LOGGER.error(ex);
+      return Status.ERROR;
+    } catch (AmazonClientException ex) {
+      LOGGER.error(ex);
+      return CLIENT_ERROR;
+    }
+
+    if (null != gres.getItem()) {
+      result.add(extractResult(gres.getItem()));
+    }
+
+    int count = 1; // startKey is done, rest to go.
+
+    Map<String, AttributeValue> startKey = createPrimaryKey(startkey);
+    ScanRequest req = new ScanRequest(table);
+    req.setAttributesToGet(fields);
+    while (count < recordcount) {
+      req.setExclusiveStartKey(startKey);
+      req.setLimit(recordcount - count);
+      ScanResult res;
+      try {
+        res = dynamoDB.scan(req);
+      } catch (AmazonServiceException ex) {
+        LOGGER.error(ex);
+        return Status.ERROR;
+      } catch (AmazonClientException ex) {
+        LOGGER.error(ex);
+        return CLIENT_ERROR;
       }
-      result.add(map);
+
+      count += res.getCount();
+      for (Map<String, AttributeValue> items : res.getItems()) {
+        result.add(extractResult(items));
+      }
+      startKey = res.getLastEvaluatedKey();
+
+    }
+
+    return Status.OK;
+  }
+
+  @Override
+  public Status update(String table, String key, Map<String, ByteIterator> values) {
+    if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug("updatekey: " + key + " from table: " + table);
+    }
+
+    Map<String, AttributeValueUpdate> attributes = new HashMap<>(values.size());
+    for (Entry<String, ByteIterator> val : values.entrySet()) {
+      AttributeValue v = new AttributeValue(val.getValue().toString());
+      attributes.put(val.getKey(), new AttributeValueUpdate().withValue(v).withAction("PUT"));
+    }
+
+    UpdateItemRequest req = new UpdateItemRequest(table, createPrimaryKey(key), attributes);
+
+    try {
+      dynamoDB.updateItem(req);
+    } catch (AmazonServiceException ex) {
+      LOGGER.error(ex);
+      return Status.ERROR;
+    } catch (AmazonClientException ex) {
+      LOGGER.error(ex);
+      return CLIENT_ERROR;
     }
     return Status.OK;
   }
 
   @Override
-  public Status update(String table, String key,
-                       Map<String, ByteIterator> values) {
-    insert(table, key, values);
-    return Status.OK;
-  }
-
-  @Override
-  public Status insert(String table, String key,
-                       Map<String, ByteIterator> values) {
-    // Add a vertex.
-    // Note that a Gremlin terminal step, e.g. next(),
-    // is required to make a request to the remote server.
-    // The full list of Gremlin terminal steps is at
-    // https://tinkerpop.apache.org/docs/current/reference/#terminal-steps
-    // g.addV("Person").property("Name", "Justin").next();
-    GraphTraversal<Vertex, Vertex> curr = g.addV(key);
-    for (Map.Entry<String, ByteIterator> entry : values.entrySet()) {
-      curr.property(entry.getKey(), entry.getValue().toString());
+  public Status insert(String table, String key, Map<String, ByteIterator> values) {
+    if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug("insertkey: " + primaryKeyName + "-" + key + " from table: " + table);
     }
-    curr.next();
+
+    Map<String, AttributeValue> attributes = createAttributes(values);
+    // adding primary key
+    attributes.put(primaryKeyName, new AttributeValue(key));
+    if (primaryKeyType == PrimaryKeyType.HASH_AND_RANGE) {
+      // If the primary key type is HASH_AND_RANGE, then what has been put
+      // into the attributes map above is the range key part of the primary
+      // key, we still need to put in the hash key part here.
+      attributes.put(hashKeyName, new AttributeValue(hashKeyValue));
+    }
+
+    PutItemRequest putItemRequest = new PutItemRequest(table, attributes);
+    try {
+      dynamoDB.putItem(putItemRequest);
+    } catch (AmazonServiceException ex) {
+      LOGGER.error(ex);
+      return Status.ERROR;
+    } catch (AmazonClientException ex) {
+      LOGGER.error(ex);
+      return CLIENT_ERROR;
+    }
     return Status.OK;
   }
 
   @Override
   public Status delete(String table, String key) {
-    g.V(key).drop();
+    if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug("deletekey: " + key + " from table: " + table);
+    }
+
+    DeleteItemRequest req = new DeleteItemRequest(table, createPrimaryKey(key));
+
+    try {
+      dynamoDB.deleteItem(req);
+    } catch (AmazonServiceException ex) {
+      LOGGER.error(ex);
+      return Status.ERROR;
+    } catch (AmazonClientException ex) {
+      LOGGER.error(ex);
+      return CLIENT_ERROR;
+    }
     return Status.OK;
   }
 
+  private static Map<String, AttributeValue> createAttributes(Map<String, ByteIterator> values) {
+    Map<String, AttributeValue> attributes = new HashMap<>(values.size() + 1);
+    for (Entry<String, ByteIterator> val : values.entrySet()) {
+      attributes.put(val.getKey(), new AttributeValue(val.getValue().toString()));
+    }
+    return attributes;
+  }
+
+  private HashMap<String, ByteIterator> extractResult(Map<String, AttributeValue> item) {
+    if (null == item) {
+      return null;
+    }
+    HashMap<String, ByteIterator> rItems = new HashMap<>(item.size());
+
+    for (Entry<String, AttributeValue> attr : item.entrySet()) {
+      if (LOGGER.isDebugEnabled()) {
+        LOGGER.debug(String.format("Result- key: %s, value: %s", attr.getKey(), attr.getValue()));
+      }
+      rItems.put(attr.getKey(), new StringByteIterator(attr.getValue().getS()));
+    }
+    return rItems;
+  }
+
+  private Map<String, AttributeValue> createPrimaryKey(String key) {
+    Map<String, AttributeValue> k = new HashMap<>();
+    if (primaryKeyType == PrimaryKeyType.HASH) {
+      k.put(primaryKeyName, new AttributeValue().withS(key));
+    } else if (primaryKeyType == PrimaryKeyType.HASH_AND_RANGE) {
+      k.put(hashKeyName, new AttributeValue().withS(hashKeyValue));
+      k.put(primaryKeyName, new AttributeValue().withS(key));
+    } else {
+      throw new RuntimeException("Assertion Error: impossible primary key type");
+    }
+    return k;
+  }
 }
