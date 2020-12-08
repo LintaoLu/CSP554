@@ -1,0 +1,36 @@
+Loading workload...
+Starting test.
+SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+DBWrapper: report latency for each error is false and specific error codes to track for latency are: []
+WARNING: An illegal reflective access operation has occurred
+WARNING: Illegal reflective access by org.apache.tinkerpop.shaded.kryo.util.UnsafeUtil (file:/home/ubuntu/.m2/repository/org/apache/tinkerpop/gremlin-shaded/3.4.8/gremlin-shaded-3.4.8.jar) to constructor java.nio.DirectByteBuffer(long,int,java.lang.Object)
+WARNING: Please consider reporting this to the maintainers of org.apache.tinkerpop.shaded.kryo.util.UnsafeUtil
+WARNING: Use --illegal-access=warn to enable warnings of further illegal reflective access operations
+WARNING: All illegal access operations will be denied in a future release
+[OVERALL], RunTime(ms), 15353
+[OVERALL], Throughput(ops/sec), 65.13385006187715
+[TOTAL_GCS_Copy], Count, 25
+[TOTAL_GC_TIME_Copy], Time(ms), 52
+[TOTAL_GC_TIME_%_Copy], Time(%), 0.3386960203217612
+[TOTAL_GCS_MarkSweepCompact], Count, 1
+[TOTAL_GC_TIME_MarkSweepCompact], Time(ms), 27
+[TOTAL_GC_TIME_%_MarkSweepCompact], Time(%), 0.17586139516706834
+[TOTAL_GCs], Count, 26
+[TOTAL_GC_TIME], Time(ms), 79
+[TOTAL_GC_TIME_%], Time(%), 0.5145574154888296
+[CLEANUP], Operations, 1
+[CLEANUP], AverageLatency(us), 3167232.0
+[CLEANUP], MinLatency(us), 3166208
+[CLEANUP], MaxLatency(us), 3168255
+[CLEANUP], 95thPercentileLatency(us), 3168255
+[CLEANUP], 99thPercentileLatency(us), 3168255
+[INSERT], Operations, 1000
+[INSERT], AverageLatency(us), 11227.47
+[INSERT], MinLatency(us), 7464
+[INSERT], MaxLatency(us), 1373183
+[INSERT], 95thPercentileLatency(us), 13567
+[INSERT], 99thPercentileLatency(us), 16527
+[INSERT], Return=OK, 1000
+
